@@ -7,9 +7,9 @@
 #include <QUdpSocket>
 #include <QtCharts>
 
-#define SERIES_SIZE         2000
+#define SERIES_SIZE         3000
 
-#define SAMPLE_RATE         200.0f
+#define SAMPLE_RATE         1000.0f
 
 using namespace std;
 using namespace QtCharts;
@@ -37,9 +37,9 @@ int main(int argc, char *argv[])
     {
         series->append(i/SAMPLE_RATE, (double)i*0.0001);
     }
-    for(int i=0; i < SERIES_SIZE; i++)
+    for(int i=0; i < SERIES_SIZE/5; i++)
     {
-        filterdSeries->append(i/SAMPLE_RATE, (double)i*0.0001);
+        filterdSeries->append(i/SAMPLE_RATE*5, (double)i*0.0001);
     }
 
     QChart *chart = new QChart();
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 
     // X轴属性
     QValueAxis *axisX = new QValueAxis;
-    axisX->setTickCount((int)(SERIES_SIZE/SAMPLE_RATE)+1); //四根线3s
+    axisX->setTickCount((int)(SERIES_SIZE/SAMPLE_RATE)+1);
     axisX->setLabelFormat("%f");
     axisX->setTitleText("T/s");
     axisX->setRange(0,SERIES_SIZE/SAMPLE_RATE);
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     QValueAxis *axisY = new QValueAxis;
     axisY->setTickCount(13);
     axisY->setLabelFormat("%f");
-    axisY->setRange(0,15);
+    axisY->setRange(0,60);
     axisY->setTitleText("Current/A");
     chart->addAxis(axisY, Qt::AlignLeft);
 
@@ -82,8 +82,10 @@ int main(int argc, char *argv[])
     w.show();
 
     // 主循环
-    QByteArray float4;
-    QByteArray float4_filter;
+    QByteArray analog_1;
+    QByteArray analog_2;
+    QByteArray analog;
+    int marked_flag = 0;
     while(!w.getout_flag)
     {
         // 等待数据
@@ -92,41 +94,74 @@ int main(int argc, char *argv[])
             array.resize(socket->pendingDatagramSize());
             socket->readDatagram(array.data(), array.size());
 
-            float4[0] = array[3];
-            float4[1] = array[2];
-            float4[2] = array[1];
-            float4[3] = array[0];
+            analog_1[0] = array[3];
+            analog_1[1] = array[2];
+            analog_1[2] = array[1];
+            analog_1[3] = array[0];
 
-            float4_filter[0] = array[7];
-            float4_filter[1] = array[6];
-            float4_filter[2] = array[5];
-            float4_filter[3] = array[4];
+            analog_2[0] = array[7];
+            analog_2[1] = array[6];
+            analog_2[2] = array[5];
+            analog_2[3] = array[4];
 
-            float pwm = (float)(array[8]*0xff + array[9]);
+            analog[0] = array[13];//10-13
+            analog[1] = array[12];
+            analog[2] = array[11];
+            analog[3] = array[10];
+            float analog1 = *(float *)analog.data();
+            analog[0] = array[17];//14-17
+            analog[1] = array[16];
+            analog[2] = array[15];
+            analog[3] = array[14];
+            float analog2 = *(float *)analog.data();
+            analog[0] = array[21];//18-21
+            analog[1] = array[20];
+            analog[2] = array[19];
+            analog[3] = array[18];
+            float analog3 = *(float *)analog.data();
+            analog[0] = array[25];//22-25
+            analog[1] = array[24];
+            analog[2] = array[23];
+            analog[3] = array[22];
+            float analog4 = *(float *)analog.data();
+            analog[0] = array[29];//26-29
+            analog[1] = array[28];
+            analog[2] = array[27];
+            analog[3] = array[26];
+            float analog5 = *(float *)analog.data();
 
-            float current = *(float *)float4.data();
-            float current_filter = *(float *)float4_filter.data();
+            float temp = (float)(array[8]*0xff + array[9]);
+            float Ubat = *(float *)analog_1.data();
+            float Imean = *(float *)analog_2.data();
             // 更新点集
             QVector<QPointF> oldPoints = series->pointsVector();
             QVector<QPointF> points;
-
-            int length = oldPoints.count();
-            for(int i=1; i < length; ++i){
-                points.append(QPointF((i-1)/SAMPLE_RATE ,oldPoints.at(i).y()));
-            }
-            points.append(QPointF((length-1)/SAMPLE_RATE,(double)current)); // 注入数据
-            series->replace(points);
-
-            // 更新点集
             QVector<QPointF> oldPoints2 = filterdSeries->pointsVector();
             QVector<QPointF> points2;
-
+            int length = oldPoints.count();
             int length2 = oldPoints2.count();
-            for(int i=1; i < length2; ++i){
-                points2.append(QPointF((i-1)/SAMPLE_RATE ,oldPoints2.at(i).y()));
+
+            for(int i=1; i <= length -5; ++i){
+                points.append(QPointF((i-1)/SAMPLE_RATE ,oldPoints.at(i+4).y()));
             }
-            points2.append(QPointF((length-1)/SAMPLE_RATE,(double)current_filter/*pwm*/)); // 注入数据
+            points.append(QPointF((length-5)/SAMPLE_RATE,(double)analog1)); // 注入数据
+            points.append(QPointF((length-4)/SAMPLE_RATE,(double)analog2));
+            points.append(QPointF((length-3)/SAMPLE_RATE,(double)analog3));
+            points.append(QPointF((length-2)/SAMPLE_RATE,(double)analog4));
+            points.append(QPointF((length-1)/SAMPLE_RATE,(double)analog5));
+            series->replace(points);
+
+            for(int i=1; i < length2; i++){
+                points2.append(QPointF((i-1)/SAMPLE_RATE*5 ,oldPoints2.at(i).y()));
+            }
+            if (marked_flag == 0 && temp >= 38)
+            {
+                temp = 0;
+                marked_flag = 1;
+            }
+            points2.append(QPointF((length-1)/SAMPLE_RATE*5,(double)temp)); // 注入数据
             filterdSeries->replace(points2);
+
 
             // 清除点集内存
             oldPoints2.clear();
