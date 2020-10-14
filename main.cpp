@@ -30,6 +30,7 @@ int main(int argc, char *argv[])
 
     QLineSeries *series = new QLineSeries();
     QLineSeries *filterdSeries = new QLineSeries();
+    QLineSeries *series3 = new QLineSeries();
     QByteArray array;
 
     // 初始化赋值
@@ -40,6 +41,10 @@ int main(int argc, char *argv[])
     for(int i=0; i < SERIES_SIZE/5; i++)
     {
         filterdSeries->append(i/SAMPLE_RATE*5, (double)i*0.0001);
+    }
+    for(int i=0; i < SERIES_SIZE/5; i++)
+    {
+        series3->append(i/SAMPLE_RATE*5.f, (double)i*0.0001);
     }
 
     QChart *chart = new QChart();
@@ -69,11 +74,14 @@ int main(int argc, char *argv[])
     // 添加点集，坐标轴,配置窗体显示
     chart->addSeries(series);
     chart->addSeries(filterdSeries);
+    chart->addSeries(series3);
 
     chart->setAxisX(axisX,series);
     chart->setAxisY(axisY,series);
     chart->setAxisX(axisX,filterdSeries);
     chart->setAxisY(axisY,filterdSeries);
+    chart->setAxisX(axisX,series3);
+    chart->setAxisY(axisY,series3);
 
     QChartView *chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
@@ -138,8 +146,11 @@ int main(int argc, char *argv[])
             QVector<QPointF> points;
             QVector<QPointF> oldPoints2 = filterdSeries->pointsVector();
             QVector<QPointF> points2;
+            QVector<QPointF> oldPoints3 = series3->pointsVector();
+            QVector<QPointF> points3;
             int length = oldPoints.count();
             int length2 = oldPoints2.count();
+            int length3 = oldPoints3.count();
 
             for(int i=1; i <= length -5; ++i){
                 points.append(QPointF((i-1)/SAMPLE_RATE ,oldPoints.at(i+4).y()));
@@ -154,25 +165,29 @@ int main(int argc, char *argv[])
             for(int i=1; i < length2; i++){
                 points2.append(QPointF((i-1)/SAMPLE_RATE*5 ,oldPoints2.at(i).y()));
             }
-            if (marked_flag == 0 && temp >= 38)
-            {
-                temp = 0;
-                marked_flag = 1;
-            }
-            points2.append(QPointF((length-1)/SAMPLE_RATE*5,(double)temp)); // 注入数据
+            points2.append(QPointF((length2-1)/SAMPLE_RATE*5,(double)Ubat)); // 注入数据
             filterdSeries->replace(points2);
 
+            for(int i=1; i < length3; i++){
+                points3.append(QPointF((i-1)/SAMPLE_RATE*5 ,oldPoints3.at(i).y()));
+            }
+            points3.append(QPointF((length3-1)/SAMPLE_RATE*5,(double)temp)); // 注入数据
+            series3->replace(points3);
 
             // 清除点集内存
             oldPoints2.clear();
             oldPoints.clear();
             points.clear();
             points2.clear();
+            oldPoints3.clear();
+            points3.clear();
             QVector<QPointF>(oldPoints2).swap(oldPoints2);
             QVector<QPointF>(oldPoints).swap(oldPoints);
             QVector<QPointF>(points).swap(points);
             QVector<QPointF>(points2).swap(points2);
-            //w.usleep(1);
+            QVector<QPointF>(oldPoints3).swap(oldPoints3);
+            QVector<QPointF>(points3).swap(points3);
+
         }
         else
         {
