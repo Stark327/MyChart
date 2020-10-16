@@ -10,7 +10,7 @@
 
 #define SERIES_SIZE         3000
 
-#define SAMPLE_RATE         10.0f
+#define SAMPLE_RATE         1000.0f
 
 #define LINE1  1
 #define LINE2  1
@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            w.usleep(50);
+            w.usleep(1);
         }
     }
     w.wait_quit = 1;
